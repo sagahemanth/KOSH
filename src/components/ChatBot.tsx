@@ -73,7 +73,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ context = '' }) => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex flex-col items-end">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -81,11 +81,11 @@ const ChatBot: React.FC<ChatBotProps> = ({ context = '' }) => {
             animate={{ 
               opacity: 1, 
               scale: 1, 
-              y: 0,
-              height: isMinimized ? '64px' : '550px'
+              y: 0
             }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 w-[350px] sm:w-[420px] mb-4 overflow-hidden flex flex-col transition-all duration-500 ease-in-out"
+            style={{ height: isMinimized ? '64px' : undefined }}
+            className={`bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 w-[calc(100vw-32px)] sm:w-[380px] mb-4 overflow-hidden flex flex-col transition-all duration-500 ease-in-out ${isMinimized ? '' : 'h-[450px] sm:h-[500px]'}`}
           >
             {/* Header */}
             <div className="bg-slate-900 p-4 flex justify-between items-center text-white shrink-0">
@@ -127,7 +127,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ context = '' }) => {
             {/* Messages Area */}
             {!isMinimized && (
               <>
-                <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-slate-50/50 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-6 bg-slate-50/50 custom-scrollbar">
                   {messages.map((msg, i) => (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -202,7 +202,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ context = '' }) => {
                 )}
 
                 {/* Input Area */}
-                <div className="p-5 bg-white border-t border-slate-100 shrink-0">
+                <div className="p-4 sm:p-5 bg-white border-t border-slate-100 shrink-0">
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -234,11 +234,11 @@ const ChatBot: React.FC<ChatBotProps> = ({ context = '' }) => {
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-all duration-500 ${
+        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition-all duration-500 ${
           isOpen ? 'bg-slate-900 text-white rotate-90' : 'bg-slate-900 text-white'
         }`}
       >
-        {isOpen ? <X className="w-7 h-7" /> : <MessageCircle className="w-7 h-7" />}
+        {isOpen ? <X className="w-6 h-6 sm:w-7 sm:h-7" /> : <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7" />}
         {!isOpen && (
           <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-white rounded-full" />
         )}

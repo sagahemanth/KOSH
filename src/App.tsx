@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import BorrowerDashboard from './components/BorrowerDashboard';
 import ChatBot from './components/ChatBot';
+import LandingPage from './components/LandingPage';
 
 declare global {
   interface Window {
@@ -206,10 +207,10 @@ const Login = ({ onMockLogin }: { onMockLogin: (email: string, name?: string) =>
       >
         <div className="p-8 bg-slate-900 text-white text-center">
           <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <IndianRupee className="w-8 h-8 text-white" />
+            <span className="text-white font-black text-3xl italic">K</span>
           </div>
-          <h1 className="text-2xl font-bold">Finance Manager</h1>
-          <p className="text-slate-400 text-sm mt-2">Manage your loans and recoveries with ease</p>
+          <h1 className="text-2xl font-bold">Kosh Finance</h1>
+          <p className="text-slate-400 text-sm mt-2">Manage your lending business with precision</p>
         </div>
         
         <div className="p-8">
@@ -1590,6 +1591,7 @@ export default function App() {
   const [suggestedPaymentAmount, setSuggestedPaymentAmount] = useState<number | undefined>(undefined);
   const [showNotification, setShowNotification] = useState(false);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [subscription, setSubscription] = useState<Subscription>({ active: false });
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null);
   const [userType, setUserType] = useState<'lender' | 'borrower' | 'loading'>('loading');
@@ -1964,8 +1966,8 @@ export default function App() {
 
   const displayBorrowers = showDeleted ? deletedBorrowers : activeBorrowers;
   const filteredBorrowers = displayBorrowers.filter(b => 
-    b.name.toLowerCase().includes(search.toLowerCase()) || 
-    b.phone.includes(search)
+    (b.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (b.phone || '').includes(search)
   );
 
   const handleNotify = (borrower: Borrower) => {
@@ -1980,6 +1982,80 @@ export default function App() {
     window.open(whatsappUrl, '_blank');
   };
 
+  const handleExportCSV = () => {
+    try {
+      console.log('Exporting CSV for:', filteredBorrowers.length, 'borrowers');
+      if (!filteredBorrowers || filteredBorrowers.length === 0) {
+        alert("No data to export. Please make sure you have borrowers in the current list.");
+        return;
+      }
+
+      const headers = [
+        "Borrower Name",
+        "Phone",
+        "Principal",
+        "Interest Rate (%)",
+        "Interest Type",
+        "Date Given",
+        "Promise Date",
+        "Surety Details",
+        "Current Balance",
+        "Status"
+      ];
+
+      const csvRows = filteredBorrowers.map(borrower => {
+        try {
+          const { balance } = calculateInterestDue(borrower, transactions);
+          const status = getStatus(borrower.promise_date, balance);
+          
+          return [
+            `"${(borrower.name || '').toString().replace(/"/g, '""')}"`,
+            `"${(borrower.phone || '').toString().replace(/"/g, '""')}"`,
+            borrower.principal || 0,
+            borrower.interest_rate || 0,
+            `"${borrower.interest_type || ''}"`,
+            `"${borrower.date_given || ''}"`,
+            `"${borrower.promise_date || ''}"`,
+            `"${(borrower.surety_details || '').toString().replace(/"/g, '""')}"`,
+            Math.round(balance || 0),
+            `"${(status || '').toUpperCase()}"`
+          ].join(",");
+        } catch (err) {
+          console.error('Error processing borrower for CSV:', borrower, err);
+          return null;
+        }
+      }).filter(row => row !== null);
+
+      if (csvRows.length === 0) {
+        alert("No valid data to export.");
+        return;
+      }
+
+      const csvContent = "\uFEFF" + [headers.join(","), ...csvRows].join("\n");
+      const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+      const filename = `borrowers_${showDeleted ? 'closed' : 'active'}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+      
+      console.log('CSV Export triggered successfully via Data URI');
+    } catch (error) {
+      console.error('CSV Export Error:', error);
+      alert("Failed to export CSV. Please check your browser's download settings or try a different browser.");
+    }
+  };
+
   if (loadingAuth && isFirebaseConfigured) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -1989,7 +2065,20 @@ export default function App() {
   }
 
   if (!user) {
-    return <Login onMockLogin={handleMockLogin} />;
+    if (showLanding) {
+      return <LandingPage onGetStarted={() => setShowLanding(false)} />;
+    }
+    return (
+      <div className="relative">
+        <button 
+          onClick={() => setShowLanding(true)}
+          className="fixed top-4 left-4 z-50 p-2 text-slate-400 hover:text-slate-900 flex items-center gap-2 text-sm font-bold"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Home
+        </button>
+        <Login onMockLogin={handleMockLogin} />
+      </div>
+    );
   }
 
   if (userType === 'loading') {
@@ -2040,7 +2129,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       {/* Fixed Notification Bar */}
       <AnimatePresence>
-        {urgentReminders.length > 0 && (
+        {showNotification && urgentReminders.length > 0 && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -2059,7 +2148,13 @@ export default function App() {
                 >
                   View Reminders
                 </button>
-                {/* Optional: Add a dismiss button if needed, but for "urgent" maybe keep it visible */}
+                <button 
+                  onClick={() => setShowNotification(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </motion.div>
@@ -2103,7 +2198,7 @@ export default function App() {
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                        className="fixed inset-x-4 top-24 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden"
                       >
                         <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                           <h3 className="font-bold text-slate-900 text-sm">Notifications</h3>
@@ -2248,12 +2343,21 @@ export default function App() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <button 
-            onClick={() => setShowDeleted(!showDeleted)}
-            className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm border ${showDeleted ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-          >
-            <Archive className="w-5 h-5" /> {showDeleted ? 'View Active' : 'View Closed'}
-          </button>
+          <div className="flex gap-2 w-full md:w-auto">
+            <button 
+              onClick={handleExportCSV}
+              className="flex-1 md:flex-none px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+              title="Export to CSV"
+            >
+              <Download className="w-5 h-5" /> <span className="md:hidden lg:inline">Export CSV</span>
+            </button>
+            <button 
+              onClick={() => setShowDeleted(!showDeleted)}
+              className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm border ${showDeleted ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+            >
+              <Archive className="w-5 h-5" /> {showDeleted ? 'View Active' : 'View Closed'}
+            </button>
+          </div>
         </div>
 
         {/* Borrower Table */}
